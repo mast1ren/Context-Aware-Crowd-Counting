@@ -1,19 +1,29 @@
 import json
-from os.path import join
-import glob
+import os
 
+
+def get_jpg_path(path, set):
+    jpg_path = []
+    
+    for root, dirs, files in os.walk(os.path.join(path, set)):
+        c = 0
+        tmp_path = []
+        for file in files:
+            if file.endswith('.jpg'):
+                tmp_path.append(os.path.join(root, file))
+        tmp_path.sort()
+        for path in tmp_path:
+            if c % 5 == 0:
+                jpg_path.append(path.replace('\\', '/'))
+            c += 1
+
+    print(len(jpg_path))
+    
+    jpg_path_json = json.dumps(jpg_path)
+    with open(set + '.json', 'w') as f:
+        f.write(jpg_path_json)
+    f.close()
 
 if __name__ == '__main__':
-    # path to folder that contains images
-    img_folder = ''
-
-    # path to the final json file
-    output_json = '.../img.json'
-
-    img_list = []
-
-    for img_path in glob.glob(join(img_folder,'*.jpg')):
-        img_list.append(img_path)
-
-    with open(output_json,'w') as f:
-        json.dump(img_list,f)
+    for var in ['train', 'test', 'val']:
+        get_jpg_path('../../ds/dronebird', var)

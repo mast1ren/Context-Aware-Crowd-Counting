@@ -1,3 +1,4 @@
+from random import random, randint
 import sys
 import os
 
@@ -30,6 +31,8 @@ parser.add_argument('--pre', '-p', metavar='PRETRAINED', default=None, type=str,
                     help='path to the pretrained model')
 parser.add_argument('gpu', metavar='GPU', type=str,
                     help='GPU id to use.')
+parser.add_argument('task', metavar='TASK', type=str,
+                    help='task id to use.')
 
 def main():
 
@@ -46,7 +49,7 @@ def main():
     args.epochs = 1000
     args.workers = 4
     args.seed = int(time.time())
-    args.print_freq = 4
+    args.print_freq = 5
     with open(args.train_json, 'r') as outfile:
         train_list = json.load(outfile)
     with open(args.val_json, 'r') as outfile:
@@ -59,7 +62,7 @@ def main():
 
     model = model.cuda()
 
-    criterion = nn.MSELoss(size_average=False).cuda()
+    criterion = nn.MSELoss(reduction='sum').cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     weight_decay=args.decay)
@@ -109,7 +112,7 @@ def main():
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
             'optimizer': optimizer.state_dict(),
-        }, is_best)
+        }, is_best, args.task)
 
         # visdom plot
         vis.line(win='train_loss', X=epoch_list, Y=train_loss_list, opts=dict(title='train_loss'))
@@ -159,18 +162,18 @@ def train(train_list, model, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('\rEpoch: [{0}][{1}/{2}]\t'
+            print('\rEpoch: [{epoch}][{batch:>{width}}/{length}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   .format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses), end='')
-
+                      epoch=epoch, batch=i, width=len(str(len(train_loader))), length=len(train_loader), batch_time=batch_time,
+                      data_time=data_time, loss=losses), end='')
+    print('')
     return losses
 
 def validate(val_list, model):
-    print ('\nbegin val')
+    print ('begin val')
     val_loader = torch.utils.data.DataLoader(
     dataset.listDataset(val_list,
                    shuffle=False,
@@ -183,11 +186,12 @@ def validate(val_list, model):
     model.eval()
 
     mae = 0
-
+    visual = randint(0, len(val_loader)-1)
     for i,(img, target) in enumerate(val_loader):
         h,w = img.shape[2:4]
-        h_d = h/2
-        w_d = w/2
+        h_d = int(h/2)
+        w_d = int(w/2)
+
         img_1 = Variable(img[:,:,:h_d,:w_d].cuda())
         img_2 = Variable(img[:,:,:h_d,w_d:].cuda())
         img_3 = Variable(img[:,:,h_d:,:w_d].cuda())
@@ -198,14 +202,17 @@ def validate(val_list, model):
         density_3 = model(img_3).data.cpu().numpy()
         density_4 = model(img_4).data.cpu().numpy()
 
-        if i == 0:
+        ht, wt = target.shape[1:3]
+        ht_d, wt_d = int(ht/2), int(wt/2)
+        # print(output_1.shape, target[:, :ht_d, :wt_d].shape)
+        if i == visual:
                 # print(img.shape, output.shape, target.shape)
             vis.image(win='image', img=img[:, :, :h_d, :w_d].squeeze(
                     0).cpu(), opts=dict(title='img'))
-            vis.image(win='gt', img=target[:, :, :h_d, :w_d].squeeze(0), opts=dict(
-                    title='gt ('+str(target[:, :, :h_d, :w_d].sum())+')'))
-            vis.image(win='et', img=output_1.cpu(), opts=dict(
-                    title='et ('+str(density_1)+')'))
+            vis.image(win='gt', img=target[:, :ht_d, :wt_d].squeeze(0), opts=dict(
+                    title='gt ('+str(target[:, :ht_d, :wt_d].sum())+')'))
+            vis.image(win='et', img=output_1[:, 0, :, :].cpu(), opts=dict(
+                    title='et ('+str(density_1.sum())+')'))
 
         pred_sum = density_1.sum()+density_2.sum()+density_3.sum()+density_4.sum()
 

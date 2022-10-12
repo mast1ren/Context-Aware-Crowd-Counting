@@ -39,6 +39,8 @@ model.eval()
 
 pred= []
 gt = []
+max_error = 0
+min_error = 1000
 with torch.no_grad():
     for i in range(len(img_paths)):
         img = transform(Image.open(img_paths[i]).convert('RGB')).to(device)
@@ -61,8 +63,14 @@ with torch.no_grad():
         pred_sum = density_1.sum()+density_2.sum()+density_3.sum()+density_4.sum()
         pred.append(pred_sum)
         gt.append(np.sum(groundtruth))
-        print('\r[{:>{}}/{}], pred: {:.2f}, gt: {:.2f}'.format(i+1, len(str(len(img_paths))), len(img_paths), pred_sum, np.sum(groundtruth)), end='')
-    print()
+        error = abs(pred_sum-np.sum(groundtruth))
+        if error > max_error:
+            max_error = error
+        if error < min_error:
+            min_error = error
+
+        print('\r[{:>{}}/{}], error: {:.2f} pred: {:.2f}, gt: {:.2f}, {}'.format(i+1, len(str(len(img_paths))), len(img_paths), error, pred_sum, np.sum(groundtruth), img_paths[i]), end='')
+    print('max_error: {:.2f}, min_error: {:.2f}'.format(max_error, min_error))
     
 mae = mean_absolute_error(pred,gt)
 rmse = np.sqrt(mean_squared_error(pred,gt))

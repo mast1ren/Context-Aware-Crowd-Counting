@@ -1,3 +1,4 @@
+from tabnanny import check
 import h5py
 import PIL.Image as Image
 import numpy as np
@@ -20,22 +21,18 @@ transform=transforms.Compose([
                                      std=[0.229, 0.224, 0.225]),
                    ])
 
-# the folder contains all the test images
-# img_folder='../data/part_B_final/test_data/images'
-# img_paths=[]
-
-# for img_path in glob.glob(os.path.join(img_folder, '*.jpg')):
-#     img_paths.append(img_path)
 
 with open('test.json','r') as f:
     img_paths=json.load(f)
 
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+print(device)
+
 model = CANNet()
+model = model.to(device)
 
-model = model.cuda()
-
-checkpoint = torch.load('0model_best.pth.tar')
-
+checkpoint = torch.load('0model_best.pth.tar', map_location={'cuda:0': 'cuda:2'})
+# checkpoint = torch.load('0checkpoint.pth.tar', map_location={'cuda:0': 'cuda:2'})
 model.load_state_dict(checkpoint['state_dict'])
 
 model.eval()
@@ -44,15 +41,15 @@ pred= []
 gt = []
 with torch.no_grad():
     for i in range(len(img_paths)):
-        img = transform(Image.open(img_paths[i]).convert('RGB')).cuda()
+        img = transform(Image.open(img_paths[i]).convert('RGB')).to(device)
         img = img.unsqueeze(0)
         h,w = img.shape[2:4]
-        h_d = h/2
-        w_d = w/2
-        img_1 = Variable(img[:,:,:h_d,:w_d].cuda())
-        img_2 = Variable(img[:,:,:h_d,w_d:].cuda())
-        img_3 = Variable(img[:,:,h_d:,:w_d].cuda())
-        img_4 = Variable(img[:,:,h_d:,w_d:].cuda())
+        h_d = int(h/2)
+        w_d = int(w/2)
+        img_1 = Variable(img[:,:,:h_d,:w_d].to(device))
+        img_2 = Variable(img[:,:,:h_d,w_d:].to(device))
+        img_3 = Variable(img[:,:,h_d:,:w_d].to(device))
+        img_4 = Variable(img[:,:,h_d:,w_d:].to(device))
         density_1 = model(img_1).data.cpu().numpy()
         density_2 = model(img_2).data.cpu().numpy()
         density_3 = model(img_3).data.cpu().numpy()
@@ -64,6 +61,8 @@ with torch.no_grad():
         pred_sum = density_1.sum()+density_2.sum()+density_3.sum()+density_4.sum()
         pred.append(pred_sum)
         gt.append(np.sum(groundtruth))
+        print('\r[{:>{}}/{}], pred: {:.2f}, gt: {:.2f}'.format(i+1, len(str(len(img_paths))), len(img_paths), pred_sum, np.sum(groundtruth)), end='')
+    print()
     
 mae = mean_absolute_error(pred,gt)
 rmse = np.sqrt(mean_squared_error(pred,gt))

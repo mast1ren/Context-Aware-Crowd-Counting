@@ -48,7 +48,7 @@ def main():
     args.start_epoch   = 0
     args.epochs = 1000
     args.workers = 4
-    args.seed = int(time.time())
+    args.seed = int(2464)
     args.print_freq = 5
     with open(args.train_json, 'r') as outfile:
         train_list = json.load(outfile)

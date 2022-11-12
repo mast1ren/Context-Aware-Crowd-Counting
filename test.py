@@ -82,7 +82,7 @@ min_error = 1000
 with torch.no_grad():
     for i in range(len(img_paths)):
         img_path = os.path.join('../../ds/dronebird', img_paths[i])
-        seq = int(img_path[3:6])
+        seq = int(os.path.basename(img_path)[3:6])
         light, angle, bird, size = get_seq_class(seq, 'test')
         gt_path = os.path.join(os.path.dirname(img_path).replace('images', 'ground_truth'), 'GT_'+os.path.basename(img_path).replace('jpg', 'h5'))
 

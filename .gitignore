@@ -1,3 +1,4 @@
 .vscode/settings.json
 *.tar
 *.pyc
+test_result.txt

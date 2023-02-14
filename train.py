@@ -46,7 +46,7 @@ def main():
     args.batch_size    = 1
     args.decay         = 5*1e-4
     args.start_epoch   = 0
-    args.epochs = 1000
+    args.epochs = 200
     args.workers = 4
     args.seed = int(2464)
     args.print_freq = 5
@@ -186,40 +186,41 @@ def validate(val_list, model):
     model.eval()
 
     mae = 0
-    visual = randint(0, len(val_loader)-1)
-    for i,(img, target) in enumerate(val_loader):
-        h,w = img.shape[2:4]
-        h_d = int(h/2)
-        w_d = int(w/2)
+    with torch.no_grad():
+        visual = randint(0, len(val_loader)-1)
+        for i,(img, target) in enumerate(val_loader):
+            h,w = img.shape[2:4]
+            h_d = int(h/2)
+            w_d = int(w/2)
 
-        img_1 = Variable(img[:,:,:h_d,:w_d].cuda())
-        img_2 = Variable(img[:,:,:h_d,w_d:].cuda())
-        img_3 = Variable(img[:,:,h_d:,:w_d].cuda())
-        img_4 = Variable(img[:,:,h_d:,w_d:].cuda())
-        output_1 = model(img_1)
-        density_1 = output_1.data.cpu().numpy()
-        density_2 = model(img_2).data.cpu().numpy()
-        density_3 = model(img_3).data.cpu().numpy()
-        density_4 = model(img_4).data.cpu().numpy()
+            img_1 = Variable(img[:,:,:h_d,:w_d].cuda())
+            img_2 = Variable(img[:,:,:h_d,w_d:].cuda())
+            img_3 = Variable(img[:,:,h_d:,:w_d].cuda())
+            img_4 = Variable(img[:,:,h_d:,w_d:].cuda())
+            output_1 = model(img_1)
+            density_1 = output_1.data.cpu().numpy()
+            density_2 = model(img_2).data.cpu().numpy()
+            density_3 = model(img_3).data.cpu().numpy()
+            density_4 = model(img_4).data.cpu().numpy()
 
-        ht, wt = target.shape[1:3]
-        ht_d, wt_d = int(ht/2), int(wt/2)
-        # print(output_1.shape, target[:, :ht_d, :wt_d].shape)
-        if i == visual:
-                # print(img.shape, output.shape, target.shape)
-            vis.image(win='image', img=img[:, :, :h_d, :w_d].squeeze(
-                    0).cpu(), opts=dict(title='img'))
-            vis.image(win='gt', img=target[:, :ht_d, :wt_d].squeeze(0), opts=dict(
-                    title='gt ('+str(target[:, :ht_d, :wt_d].sum())+')'))
-            vis.image(win='et', img=output_1[:, 0, :, :].cpu(), opts=dict(
-                    title='et ('+str(density_1.sum())+')'))
+            ht, wt = target.shape[1:3]
+            ht_d, wt_d = int(ht/2), int(wt/2)
+            # print(output_1.shape, target[:, :ht_d, :wt_d].shape)
+            if i == visual:
+                    # print(img.shape, output.shape, target.shape)
+                vis.image(win='image', img=img[:, :, :h_d, :w_d].squeeze(
+                        0).cpu(), opts=dict(title='img'))
+                vis.image(win='gt', img=target[:, :ht_d, :wt_d].squeeze(0), opts=dict(
+                        title='gt ('+str(target[:, :ht_d, :wt_d].sum())+')'))
+                vis.image(win='et', img=output_1[:, 0, :, :].cpu(), opts=dict(
+                        title='et ('+str(density_1.sum())+')'))
 
-        pred_sum = density_1.sum()+density_2.sum()+density_3.sum()+density_4.sum()
+            pred_sum = density_1.sum()+density_2.sum()+density_3.sum()+density_4.sum()
 
-        mae += abs(pred_sum-target.sum())
+            mae += abs(pred_sum-target.sum())
 
-    mae = mae/len(val_loader)
-    print(' * MAE {mae:.3f} '
+        mae = mae/len(val_loader)
+        print(' * MAE {mae:.3f} '
               .format(mae=mae))
 
     return mae

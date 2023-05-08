@@ -7,7 +7,7 @@ import cv2
 
 
 def load_data(img_path, train=True):
-    img_path = os.path.join('../../ds/dronebird', img_path)
+    img_path = os.path.join('../../nas-public-linkdata/ds/dronebird', img_path)
     gt_path = os.path.join(os.path.dirname(img_path).replace('images', 'ground_truth'), 'GT_'+os.path.basename(img_path).replace('.jpg', '.h5'))
     # gt_path = img_path.replace('.jpg', '.h5').replace('data', 'annotation')
     img = Image.open(img_path).convert('RGB')
